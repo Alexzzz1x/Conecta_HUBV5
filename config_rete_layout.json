@@ -1,0 +1,19 @@
+{
+  "larguras": {
+    "linha": 55,
+    "serial": 150,
+    "material": 140,
+    "lote": 70,
+    "equipe": 70,
+    "deposito": 70,
+    "data": 75,
+    "centro": 65,
+    "statsis": 65,
+    "status": 75,
+    "osme": 120,
+    "documento": 100,
+    "data_doc": 75,
+    "obs": 180,
+    "resultado": 200
+  }
+}
