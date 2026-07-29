@@ -1,9 +1,90 @@
 import os
+import base64
 import qrcode
+from io import BytesIO
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.graphics.barcode import code128
+
+
+def gerar_html_para_impressao(deposito, material, descricao, qtd, unidade, lote="", tamanho="Grande", qr_topo=""):
+    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+    pasta_destino = os.path.join(diretorio_atual, "etiquetas_geradas")
+    if not os.path.exists(pasta_destino):
+        os.makedirs(pasta_destino)
+
+    mapa_medidas = {"Pequena": (100, 63), "Média": (150, 88), "Grande": (210, 148)}
+    largura_mm, altura_mm = mapa_medidas.get(tamanho, (210, 148))
+
+    qr_base64 = ""
+    if qr_topo:
+        img = qrcode.make(str(qr_topo))
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        qr_base64 = base64.b64encode(buf.getvalue()).decode()
+
+    nome_arquivo = str(material).strip() or "identificacao_livre"
+    caminho_html = os.path.join(pasta_destino, f"etiqueta_{nome_arquivo}.html")
+
+    qr_html = ""
+    if qr_base64:
+        qr_html = f'<img src="data:image/png;base64,{qr_base64}" style="width:35mm;height:35mm;position:absolute;top:3mm;right:3mm;">'
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Etiqueta {nome_arquivo}</title>
+<style>
+  @page {{ size: {largura_mm}mm {altura_mm}mm; margin: 0; }}
+  @media print {{ body {{ margin: 0; }} .no-print {{ display: none; }} }}
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{
+    width: {largura_mm}mm;
+    height: {altura_mm}mm;
+    font-family: Arial, Helvetica, sans-serif;
+    position: relative;
+    border: 1.5px solid black;
+    padding: 4mm;
+    overflow: hidden;
+  }}
+  .header {{
+    border-bottom: 1px solid black;
+    padding-bottom: 2mm;
+    margin-bottom: 2mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }}
+  .logo-text {{ font-size: 11pt; font-weight: bold; }}
+  .dep-text {{ font-size: 12pt; font-weight: bold; text-align: right; }}
+  .deposito {{ font-size: 42pt; font-weight: bold; text-align: center; margin: 4mm 0 2mm 0; }}
+  .material {{ font-size: 20pt; font-weight: bold; text-align: center; margin-bottom: 2mm; }}
+  .descricao {{ font-size: 10pt; font-weight: bold; text-align: center; margin-bottom: 2mm; }}
+  .quantidade {{ font-size: 14pt; font-weight: bold; text-align: center; margin-bottom: 1mm; }}
+  .lote {{ font-size: 12pt; font-weight: bold; text-align: center; margin-bottom: 2mm; }}
+</style>
+</head>
+<body onload="setTimeout(function(){{window.print();}}, 300);">
+  {qr_html}
+  <div class="header">
+    <span class="logo-text">CONECTA LOG</span>
+    <span class="dep-text">DEP: {deposito}</span>
+  </div>
+  <div class="deposito">{deposito}</div>
+  <div class="material">{material}</div>
+  <div class="descricao">{descricao[:70]}</div>
+  {"<div class='quantidade'>QUANTIDADE: " + str(qtd) + " " + str(unidade) + "</div>" if qtd else ""}
+  {"<div class='lote'>LOTE: " + str(lote) + "</div>" if lote else ""}
+</body>
+</html>"""
+
+    with open(caminho_html, "w", encoding="utf-8") as f:
+        f.write(html)
+
+    return caminho_html
+
 
 def gerar_pdf_placa_tradicional(deposito, material, descricao, qtd, unidade, lote="", tamanho="Grande", qr_topo=""):
     # Configuração de diretórios
