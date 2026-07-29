@@ -9,6 +9,7 @@ from modulo_conferencia import construir_aba_conferencia
 from modulo_etiquetas import construir_aba_etiquetas
 from modulo_extrair_OSME import construir_aba_extrair_osme
 from modulo_extrator import construir_aba_extrator
+from modulo_chat import JanelaChat
 
 
 
@@ -362,6 +363,146 @@ sap_view = construir_aba_sap(tab_sap, lbl_status, PALETAS, obter_tema_atual)
 bandeirada_view = construir_aba_bandeirada(tab_bandeirada, lbl_status, PALETAS, obter_tema_atual)
 osme_view = construir_aba_extrair_osme(tab_osme, lbl_status, PALETAS, obter_tema_atual)
 conferencia_view = construir_aba_conferencia(tab_conferencia, lbl_status, PALETAS, obter_tema_atual)
+
+chat_janela_ref = [None]
+
+def _trocar_aba(tab):
+    notebook.select(tab)
+
+def _buscar_lote_chat(lote):
+    _trocar_aba(tab_gerador)
+    etiquetas_view.campo_lote.delete(0, tk.END)
+    etiquetas_view.campo_lote.insert(0, lote)
+    etiquetas_view.buscar_lote()
+    return {
+        "lote": lote,
+        "deposito": etiquetas_view.deposito_var.get(),
+        "material": etiquetas_view.campo_material.get(),
+        "quantidade": etiquetas_view.campo_qtd.get(),
+        "seriais_encontrados": len(etiquetas_view.seriais_lote),
+        "primeiros_seriais": etiquetas_view.seriais_lote[:5]
+    }
+
+def _gerar_doc_chat(lote):
+    _trocar_aba(tab_gerador)
+    etiquetas_view.campo_lote.delete(0, tk.END)
+    etiquetas_view.campo_lote.insert(0, lote)
+    etiquetas_view.buscar_lote()
+    etiquetas_view.gerar_doc_google()
+    link = etiquetas_view.campo_qr_topo.get()
+    if link:
+        return {"lote": lote, "link": link, "status": "Documento criado com sucesso"}
+    return {"erro": "Nao foi possivel criar o documento"}
+
+def _gerar_etiqueta_chat(deposito, material="", descricao="", qtd="", unidade="PCS", lote=""):
+    _trocar_aba(tab_gerador)
+    from gerador import gerar_pdf_placa_tradicional
+    try:
+        caminho = gerar_pdf_placa_tradicional(
+            deposito, material, descricao, qtd, unidade,
+            lote=lote, tamanho="Grande"
+        )
+        return {"status": "PDF gerado com sucesso", "arquivo": caminho, "deposito": deposito, "material": material}
+    except Exception as e:
+        return {"erro": str(e)}
+
+def _consultar_material_chat(codigo):
+    _trocar_aba(tab_gerador)
+    etiquetas_view.campo_material.delete(0, tk.END)
+    etiquetas_view.campo_material.insert(0, codigo)
+    etiquetas_view.buscar_material()
+    desc = etiquetas_view.campo_descricao.get()
+    if desc:
+        return {"codigo": codigo, "descricao": desc}
+    return {"codigo": codigo, "descricao": "Nao encontrada no banco de dados"}
+
+def _listar_lotes_chat():
+    import pandas as pd
+    try:
+        caminho = r"\\terra\conecta\arquivos\obras\Elpa - Almox CR Mauá\CONTROLES\CONTROLE_SERIAIS.vBeta.xlsm"
+        df = pd.read_excel(caminho, sheet_name="ESTOQUE", engine="openpyxl")
+        df.columns = df.columns.str.strip()
+        if "LOTE" in df.columns:
+            lotes = df["LOTE"].dropna().unique().tolist()
+            lotes_str = [str(l).strip() for l in lotes]
+            return {"total": len(lotes_str), "lotes": sorted(lotes_str)}
+        return {"erro": "Coluna LOTE nao encontrada"}
+    except Exception as e:
+        return {"erro": str(e)}
+
+def _extrair_seriais_chat(texto):
+    _trocar_aba(tab_extrator)
+    extrator_view.txt_entrada.delete("1.0", tk.END)
+    extrator_view.txt_entrada.insert("1.0", texto)
+    extrator_view.extrair_seriais()
+    resultado = extrator_view.txt_sem_ponto_virgula.get("1.0", tk.END).strip()
+    lista = [l.strip() for l in resultado.splitlines() if l.strip()]
+    return {"total": len(lista), "seriais": lista}
+
+def _login_sap_chat(usuario):
+    _trocar_aba(tab_sap)
+    try:
+        from modulo_Sap import logar_sap, logins_salvos, carregar_logins
+        carregar_logins()
+        nome_lower = usuario.lower().strip()
+        encontrado = None
+        for nome_salvo, dados in logins_salvos.items():
+            if nome_salvo.lower() == nome_lower:
+                encontrado = dados
+                break
+        if not encontrado:
+            for nome_salvo, dados in logins_salvos.items():
+                if nome_lower in nome_salvo.lower():
+                    encontrado = dados
+                    usuario = nome_salvo
+                    break
+        if not encontrado:
+            nomes = list(logins_salvos.keys())
+            return {"erro": f"Usuario '{usuario}' nao encontrado. Usuarios disponiveis: {', '.join(nomes)}"}
+        logar_sap(encontrado["usuario"], encontrado["senha"], usuario, lbl_status)
+        return {"status": f"Login SAP realizado para {usuario} ({encontrado['usuario']})"}
+    except Exception as e:
+        return {"erro": str(e)}
+
+def _info_sap_chat():
+    try:
+        info = obter_info_sap_atual()
+        return {"info": info}
+    except Exception as e:
+        return {"erro": str(e)}
+
+def _copiar_seriais_chat():
+    _trocar_aba(tab_extrator)
+    extrator_view.copiar_sem_ponto_virgula()
+    return {"status": "Serais copiados para a area de transferencia"}
+
+funcoes_chat = {
+    "buscar_lote": _buscar_lote_chat,
+    "gerar_doc_google": _gerar_doc_chat,
+    "gerar_etiqueta": _gerar_etiqueta_chat,
+    "consultar_material": _consultar_material_chat,
+    "listar_lotes": _listar_lotes_chat,
+    "extrair_seriais": _extrair_seriais_chat,
+    "login_sap": _login_sap_chat,
+    "info_sap": _info_sap_chat,
+    "copiar_seriais": _copiar_seriais_chat,
+}
+
+def abrir_chat():
+    if chat_janela_ref[0] and chat_janela_ref[0].winfo_exists():
+        chat_janela_ref[0].lift()
+        chat_janela_ref[0].focus_force()
+        return
+    chat_popup = JanelaChat(root, PALETAS, obter_tema_atual, funcoes_chat)
+    chat_janela_ref[0] = chat_popup.janela
+
+btn_chat = tk.Button(
+    root, text="💬", font=("Segoe UI", 16),
+    bg="#f57c00", fg="white", bd=0, width=3, height=1,
+    command=abrir_chat, cursor="hand2",
+    activebackground="#e65100", relief="flat"
+)
+btn_chat.place(relx=1.0, rely=1.0, x=-70, y=-45)
 
 aplicar_tema(tema_inicial)
 atualizar_info_sap()

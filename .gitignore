@@ -8,3 +8,13 @@ build/
 *.lnk
 etiquetas_geradas/
 Nova pasta/
+
+# Senhas e chaves de API
+logins_sap.json
+config_chat.txt
+config_tema_hub.txt
+config_rete_caminho.json
+config_rete_layout.json
+
+# Arquivos temporarios VBS
+*.tmp

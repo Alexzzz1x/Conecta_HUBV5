@@ -1,0 +1,9 @@
+pandas
+openpyxl
+reportlab
+qrcode
+pywin32
+Pillow
+numpy
+requests
+customtkinter
