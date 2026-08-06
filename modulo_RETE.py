@@ -873,10 +873,13 @@ class AbaRETE:
             tmp.write(conteudo)
             tmp.close()
             try:
+                creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
                 resultado = subprocess.run(
                     ["cscript.exe", "//nologo", tmp.name],
-                    capture_output=True, text=True, timeout=45
+                    capture_output=True, text=True, timeout=45,
+                    creationflags=creationflags,
                 )
+
                 saida = resultado.stdout.strip()
                 if saida.startswith("ERRO:"):
                     erros.append(f"{serial}: {saida}")

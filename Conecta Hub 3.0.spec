@@ -17,7 +17,10 @@ hiddenimports += [
     'qrcode',
     'win32com',
     'win32com.client',
+    'win32gui',
+    'win32con',
     'pythoncom',
+
     'tkcalendar',
     'babel.numbers',
     'reportlab.graphics.barcode.code128',

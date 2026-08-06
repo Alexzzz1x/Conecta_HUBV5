@@ -9,6 +9,9 @@ from tkinter import messagebox, ttk
 
 import pythoncom
 import win32com.client
+import win32con
+import win32gui
+
 
 from modulo_Sap import verificar_sap_aberto
 
@@ -120,12 +123,15 @@ class AbaExtrairOSME:
                 script_temp = self._criar_script_temporario(recurso)
                 self._log_threadsafe("\U0001f50d Executando extracao OSME no SAP...")
 
+                creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
                 resultado = subprocess.run(
                     ["cscript.exe", "//nologo", script_temp],
                     capture_output=True,
                     text=True,
                     timeout=240,
+                    creationflags=creationflags,
                 )
+
 
                 saida = (resultado.stdout or "").strip()
                 if saida:
@@ -190,6 +196,7 @@ class AbaExtrairOSME:
         bloco_reset = (
             "' Reset automatico inserido pelo Conecta Hub\n"
             'On Error Resume Next\n'
+            'session.findById("wnd[0]/tbar[0]/btn[12]").press\n'
             'session.findById("wnd[0]/tbar[0]/okcd").text = "/nS000"\n'
             'session.findById("wnd[0]").sendVKey 0\n'
             'WScript.Sleep 500\n'
@@ -199,6 +206,7 @@ class AbaExtrairOSME:
             'On Error GoTo 0\n'
         )
 
+
         if ponto_ancora in conteudo:
             return conteudo.replace(ponto_ancora, ponto_ancora + "\n" + bloco_reset, 1)
 
@@ -206,52 +214,100 @@ class AbaExtrairOSME:
 
     def _imprimir_excel_aberto(self):
         pythoncom.CoInitialize()
+        self._log_threadsafe("🖨️ Focando na janela do Excel para impressão...")
+        time.sleep(2.5)
 
-        excel = self._aguardar_excel()
-        if not excel:
-            self._log_threadsafe("\u26a0 Nao encontrei Excel via COM. Tentando imprimir pela janela ativa...")
-            if self._imprimir_excel_por_atalho():
-                self._log_threadsafe("\u2705 Comando de impressao enviado pela janela do Excel.")
-            else:
-                self._log_threadsafe("\u26a0 Nao consegui ativar a janela do Excel para imprimir.")
+        # 1. Busca o HWND nativo da janela do Excel no Windows
+        hwnd_excel = self._encontrar_hwnd_excel()
+        if not hwnd_excel:
+            self._log_threadsafe("⚠️ Janela do Excel não foi localizada na tela.")
             return
 
-        workbook = self._aguardar_workbook(excel)
-        if not workbook:
-            self._log_threadsafe("\u26a0 Excel encontrado, mas nenhuma pasta de trabalho ativa ficou disponivel.")
-            return
-
+        # 2. Restaura e força o foco em primeiro plano no Windows
         try:
-            excel.DisplayAlerts = False
-            workbook.ActiveSheet.PageSetup.Orientation = 2
-            workbook.ActiveSheet.PrintOut()
-            self._log_threadsafe("\u2705 Impressao em paisagem enviada para a impressora padrao.")
-        except Exception as e:
-            self._log_threadsafe(f"\u26a0 Excel encontrado, mas a impressao via COM falhou: {e}")
-            if self._imprimir_excel_por_atalho():
-                self._log_threadsafe("\u2705 Comando de impressao enviado pela janela do Excel.")
+            win32gui.ShowWindow(hwnd_excel, win32con.SW_RESTORE)
+            win32gui.SetForegroundWindow(hwnd_excel)
+            time.sleep(0.8)
+        except Exception as e_win:
+            print(f"[DEBUG] Focus error: {e_win}")
 
-    def _aguardar_excel(self, tentativas=20, intervalo=0.5):
-        for _ in range(tentativas):
-            try:
-                return win32com.client.GetActiveObject("Excel.Application")
-            except Exception:
-                time.sleep(intervalo)
-        return None
+        # 3. Tenta aplicar o modo Paisagem via COM se disponível
+        try:
+            excel = win32com.client.GetActiveObject("Excel.Application")
+            if excel:
+                excel.DisplayAlerts = False
+                excel.Visible = True
+                if hasattr(excel, "ProtectedViewWindows") and excel.ProtectedViewWindows.Count > 0:
+                    for i in range(1, excel.ProtectedViewWindows.Count + 1):
+                        excel.ProtectedViewWindows(i).Edit()
+                    time.sleep(1.0)
+                wb = excel.ActiveWorkbook or excel.Workbooks(excel.Workbooks.Count)
+                if wb:
+                    sheet = wb.ActiveSheet or wb.Sheets(1)
+                    sheet.PageSetup.Orientation = 2  # xlLandscape
+                    sheet.PageSetup.Zoom = False
+                    sheet.PageSetup.FitToPagesWide = 1
+                    sheet.PageSetup.FitToPagesTall = False
+        except Exception as e_com:
+            print(f"[DEBUG] COM PageSetup error: {e_com}")
 
-    def _aguardar_workbook(self, excel, tentativas=20, intervalo=0.5):
+        # 4. Força o foco novamente no Excel antes de enviar os atalhos
+        try:
+            win32gui.SetForegroundWindow(hwnd_excel)
+            time.sleep(0.5)
+        except Exception:
+            pass
+
+        # 5. Configura a página em PAISAGEM (Alt+P -> O -> DOWN -> ENTER)
+        try:
+            shell = win32com.client.Dispatch("WScript.Shell")
+            # Alt+P (Layout da Pagina)
+            shell.SendKeys("%p")
+            time.sleep(0.4)
+            # O (Orientacao)
+            shell.SendKeys("o")
+            time.sleep(0.4)
+            # Seta para baixo seleciona Paisagem no menu
+            shell.SendKeys("{DOWN}")
+            time.sleep(0.4)
+            # Enter confirma Paisagem
+            shell.SendKeys("{ENTER}")
+            time.sleep(0.8)
+
+            # 6. Envia Ctrl+P (Menu de Impressão) + Enter (Confirma na impressora padrão)
+            shell.SendKeys("^p")  # Ctrl+P
+            time.sleep(1.5)
+            shell.SendKeys("{ENTER}")  # Enter
+            self._log_threadsafe("✅ Planilha configurada em PAISAGEM e impressa com sucesso!")
+        except Exception as e_keys:
+            self._log_threadsafe(f"⚠️ Erro ao enviar atalho no teclado: {e_keys}")
+
+
+    def _encontrar_hwnd_excel(self, tentativas=20, intervalo=0.5):
         for _ in range(tentativas):
-            try:
-                if excel.Workbooks.Count > 0:
-                    return excel.ActiveWorkbook or excel.Workbooks(excel.Workbooks.Count)
-            except Exception:
-                pass
+            janelas = []
+
+            def enum_cb(hwnd, extra):
+                if win32gui.IsWindowVisible(hwnd):
+                    cls = win32gui.GetClassName(hwnd)
+                    title = win32gui.GetWindowText(hwnd)
+                    if "XLMAIN" in cls or "Excel" in title or "XLS" in title or "ALV" in title:
+                        janelas.append(hwnd)
+
+            win32gui.EnumWindows(enum_cb, None)
+            if janelas:
+                return janelas[0]
             time.sleep(intervalo)
         return None
 
-    def _imprimir_excel_por_atalho(self, tentativas=20, intervalo=0.5):
+
+
+
+
+
+    def _imprimir_excel_por_atalho(self, tentativas=30, intervalo=0.5):
         shell = win32com.client.Dispatch("WScript.Shell")
-        titulos = ["Microsoft Excel", "Excel"]
+        titulos = ["Microsoft Excel", "Excel", "Pasta", "Ordem", "OSME"]
 
         for _ in range(tentativas):
             for titulo in titulos:
@@ -273,6 +329,8 @@ class AbaExtrairOSME:
             time.sleep(intervalo)
 
         return False
+
+
 
     def _construir_interface(self):
         container = ttk.Frame(self.parent_frame)
@@ -304,7 +362,8 @@ class AbaExtrairOSME:
         )
         self.btn_extrair.pack(side="left", fill="x", expand=True)
 
-        self.imprimir_excel_var = tk.BooleanVar(value=False)
+        self.imprimir_excel_var = tk.BooleanVar(value=True)
+
         self.check_imprimir_excel = tk.Checkbutton(
             frame_botoes,
             text="\U0001f5a8 Imprimir Excel ao finalizar",

@@ -14,8 +14,9 @@ If IsObject(WScript) Then
 End If
 session.findById("wnd[0]").maximize
 
-' Tenta comando direto de transacao primeiro (/nIQ09), fallback para arvore Easy Access
+' Pressiona btn[12] para retornar/ativar a barra de comando e digita /nIQ09
 On Error Resume Next
+session.findById("wnd[0]/tbar[0]/btn[12]").press
 session.findById("wnd[0]/tbar[0]/okcd").text = "/nIQ09"
 session.findById("wnd[0]").sendVKey 0
 If Err.Number <> 0 Then

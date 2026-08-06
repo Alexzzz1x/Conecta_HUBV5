@@ -109,12 +109,15 @@ class AbaBandeirada:
                 script_temp = self._criar_script_temporario(recurso)
                 self._log_threadsafe("\U0001f50d Executando consulta no SAP para obter a ordem do recurso...")
 
+                creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
                 resultado = subprocess.run(
                     ["cscript.exe", "//nologo", script_temp],
                     capture_output=True,
                     text=True,
                     timeout=180,
+                    creationflags=creationflags,
                 )
+
 
                 saida = (resultado.stdout or "").strip()
                 if saida:
@@ -184,6 +187,7 @@ class AbaBandeirada:
         bloco_reset = (
             "' Reset automatico inserido pelo Conecta Hub\n"
             'On Error Resume Next\n'
+            'session.findById("wnd[0]/tbar[0]/btn[12]").press\n'
             'session.findById("wnd[0]/tbar[0]/okcd").text = "/nS000"\n'
             'session.findById("wnd[0]").sendVKey 0\n'
             'WScript.Sleep 500\n'
@@ -192,6 +196,7 @@ class AbaBandeirada:
             'End If\n'
             'On Error GoTo 0\n'
         )
+
 
         if ponto_ancora in conteudo:
             return conteudo.replace(ponto_ancora, ponto_ancora + "\n" + bloco_reset, 1)
