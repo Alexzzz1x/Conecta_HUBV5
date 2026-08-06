@@ -9,7 +9,17 @@ Set session = connection.Children(0)
 If Err.Number <> 0 Then WScript.Echo "ERRO:Session" : WScript.Quit
 On Error Goto 0
 session.findById("wnd[0]").resizeWorkingPane 169,38,false
-session.findById("wnd[0]/usr/cntlIMAGE_CONTAINER/shellcont/shell/shellcont[0]/shell").doubleClickNode "F00021"
+
+' Navega para MIGO via comando direto (/nMIGO) com fallback para arvore Easy Access (F00021)
+On Error Resume Next
+session.findById("wnd[0]/tbar[0]/okcd").text = "/nMIGO"
+session.findById("wnd[0]").sendVKey 0
+If Err.Number <> 0 Or session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0003/subSUB_FIRSTLINE:SAPLMIGO:0010/ctxtGODEFAULT_TV-BWART") Is Nothing Then
+   Err.Clear
+   session.findById("wnd[0]/usr/cntlIMAGE_CONTAINER/shellcont/shell/shellcont[0]/shell").doubleClickNode "F00021"
+End If
+On Error GoTo 0
+
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0003/subSUB_FIRSTLINE:SAPLMIGO:0010/ctxtGODEFAULT_TV-BWART").text = "Z77"
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0003/subSUB_FIRSTLINE:SAPLMIGO:0010/ctxtGODEFAULT_TV-BWART").setFocus
 session.findById("wnd[0]/usr/ssubSUB_MAIN_CARRIER:SAPLMIGO:0003/subSUB_FIRSTLINE:SAPLMIGO:0010/ctxtGODEFAULT_TV-BWART").caretPosition = 3
