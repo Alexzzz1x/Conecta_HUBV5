@@ -18,7 +18,7 @@ MODELOS_OPENROUTER = [
     {"id": "xiaomi/mimo-v2.5", "nome": "MiMo V2.5"},
 ]
 
-SYSTEM_PROMPT = """Voce e o assistente virtual do Conecta Hub 2.0, um sistema de gerenciamento de estoque e etiquetas da Conecta Empreendimentos.
+SYSTEM_PROMPT = """Voce e o assistente virtual do Conecta Hub 3.0, um sistema de gerenciamento de estoque e etiquetas da Conecta Empreendimentos.
 
 Voce tem acesso as seguintes funcoes:
 

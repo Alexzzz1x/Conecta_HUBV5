@@ -1,4 +1,5 @@
-# Conecta Hub 2.0
+# Conecta Hub 3.0
+
 
 Python/Tkinter desktop app — SAP GUI automation hub.
 

@@ -10,6 +10,7 @@ from modulo_etiquetas import construir_aba_etiquetas
 from modulo_extrair_OSME import construir_aba_extrair_osme
 from modulo_extrator import construir_aba_extrator
 from modulo_chat import JanelaChat
+from Modulo_ZMCSE003 import construir_aba_zmcse003
 
 
 
@@ -162,16 +163,20 @@ def obter_tema_atual():
 
 def aplicar_icone_janela(janela):
     try:
-        janela.iconbitmap(obter_caminho_recurso("icone_lua.ico"))
+        janela.iconbitmap(obter_caminho_recurso("eclipse.ico"))
     except Exception:
-        pass
+        try:
+            janela.iconbitmap(obter_caminho_recurso("icone_lua.ico"))
+        except Exception:
+            pass
 
     try:
-        icone_taskbar = tk.PhotoImage(file=obter_caminho_recurso("icone_lua.png"))
+        icone_taskbar = tk.PhotoImage(file=obter_caminho_recurso("icone_taskbar.png"))
         janela.iconphoto(True, icone_taskbar)
         janela.icone_taskbar = icone_taskbar
     except Exception:
         pass
+
 
 
 def aplicar_tema(tema_nome):
@@ -297,7 +302,7 @@ def atualizar_info_sap():
 
 
 root = tk.Tk()
-root.title("Conecta Hub 2.0 - Hub de Ferramentas")
+root.title("Conecta Hub 3.0 - Hub de Ferramentas")
 root.geometry("1160x700")
 aplicar_icone_janela(root)
 
@@ -317,7 +322,7 @@ except Exception:
     lbl_logo = tk.Label(frame_topo, text="CONECTA EMPREENDIMENTOS", font=("Segoe UI", 14, "bold"), borderwidth=0)
 lbl_logo.pack(side=tk.LEFT, padx=10)
 
-ttk.Label(frame_topo, text="Conecta Hub 2.0", font=("Segoe UI", 16, "bold")).pack(side="left", padx=10)
+ttk.Label(frame_topo, text="Conecta Hub 3.0", font=("Segoe UI", 16, "bold")).pack(side="left", padx=10)
 
 combo_temas = ttk.Combobox(frame_topo, values=list(PALETAS.keys()), state="readonly", width=14)
 combo_temas.set(tema_inicial)
@@ -348,7 +353,8 @@ notebook.add(tab_conferencia, text="\U0001f4e6 Conferencia")
 bar_status = tk.Frame(root, bd=1, relief="sunken")
 bar_status.pack(side="bottom", fill="x")
 
-lbl_status = tk.Label(bar_status, text=" Modulo Gerador Ativo | Conecta Hub 2.0", font=("Segoe UI", 9, "bold"))
+lbl_status = tk.Label(bar_status, text=" Modulo Gerador Ativo | Conecta Hub 3.0", font=("Segoe UI", 9, "bold"))
+
 lbl_status.pack(side="left", padx=5, pady=3)
 
 lbl_sap_info = tk.Label(bar_status, text="SAP: verificando...", font=("Segoe UI", 9, "bold"))
@@ -362,6 +368,9 @@ extrator_view = construir_aba_extrator(tab_extrator, lbl_status, PALETAS, obter_
 sap_view = construir_aba_sap(tab_sap, lbl_status, PALETAS, obter_tema_atual)
 bandeirada_view = construir_aba_bandeirada(tab_bandeirada, lbl_status, PALETAS, obter_tema_atual)
 osme_view = construir_aba_extrair_osme(tab_osme, lbl_status, PALETAS, obter_tema_atual)
+tab_zm02 = ttk.Frame(notebook)
+notebook.add(tab_zm02, text="⚙️ Entrada ZM02 – ENEL")
+zm02_view = construir_aba_zmcse003(tab_zm02)
 conferencia_view = construir_aba_conferencia(tab_conferencia, lbl_status, PALETAS, obter_tema_atual)
 
 chat_janela_ref = [None]

@@ -16,5 +16,7 @@ config_tema_hub.txt
 config_rete_caminho.json
 config_rete_layout.json
 
-# Arquivos temporarios VBS
+# Arquivos temporarios VBS e logs
 *.tmp
+log_*.xlsx
+
